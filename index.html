@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang='es'>
+
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
@@ -9,9 +10,12 @@
     <script src='https://unpkg.com/@babel/standalone/babel.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js'></script>
     <script src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'></script>
-    <link href='https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap' rel='stylesheet'>
+    <link
+        href='https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap'
+        rel='stylesheet'>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div id='root'></div>
 
@@ -20,6 +24,7 @@
 
         function Dashboard() {
             const [excelData, setExcelData] = useState(null);
+            const [data, setData] = useState(null);
             const [fileName, setFileName] = useState('');
             const [filters, setFilters] = useState({
                 molecula: 'TODAS',
@@ -32,6 +37,47 @@
             const [selectedPeriod, setSelectedPeriod] = useState(null); // Nuevo estado para periodo seleccionado
 
             const fileInputRef = useRef(null);
+
+            useEffect(() => {
+                const fetchData = async () => {
+                    setLoading(true);
+                    try {
+                        const response = await fetch('./data.json')
+                        const json = await response.json();
+
+                        // Map backend fields to frontend expected structure
+                        const mappedData = json.map(row => ({
+                            mes: row.mes,
+                            gardener: row.ccaa,
+                            comparator_autorizada: row.molecula,
+                            experiencia_hcp: row.especialidad_hcp,
+                            hcp_mdx_proyectado: Number(row.hcp_proy),
+                            pacientes_proyectados: Number(row.pacientes),
+                            rx_proyectadas: Number(row.rx),
+                            depth: Number(row.depth),
+                            breadth: Number(row.breadth),
+                            novedosos: Number(row.novedosos),
+                            tipoper: row.tipoper,
+                            mercado: row.mercado,
+                            segmento: row.segmento
+                        }));
+
+                        setData(mappedData);
+
+                        // Initialize periods
+                        const uniquePeriods = [...new Set(mappedData.map(r => r.mes))];
+                        setFilters(prev => ({ ...prev, periods: uniquePeriods }));
+
+                    } catch (err) {
+                        console.error(err);
+                        alert('Error cargando datos del backend');
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                fetchData();
+            }, []);
 
             const handleFileUpload = (e) => {
                 const file = e.target.files[0];
@@ -47,7 +93,7 @@
                         const workbook = XLSX.read(data, { type: 'array' });
                         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                         const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                        
+
                         // Map column names to expected format
                         // IMPORTANTE: Usar valores PRECALCULADOS del archivo (columnas en AZUL)
                         // - HCP: columna 'HCP_PROY_NEW' (en lugar de HCP_MOL_Projected)
@@ -72,14 +118,14 @@
                             mercado: row.MERCADO || 'N/A',
                             segmento: row.SEGMENTO || 'N/A'
                         }));
-                        
+
                         console.log('Datos mapeados:', mappedData.slice(0, 3));
-                        setExcelData(mappedData);
-                        
+                        setData(mappedData);
+
                         // Initialize periods filter with all available periods
                         const uniquePeriods = [...new Set(mappedData.map(row => row.mes))].filter(Boolean);
                         setFilters(prev => ({ ...prev, periods: uniquePeriods }));
-                        
+
                         setLoading(false);
                     } catch (error) {
                         console.error('Error reading file:', error);
@@ -104,17 +150,17 @@
             };
 
             const getFilteredData = () => {
-                if (!excelData) return [];
+                if (!data) return [];
 
-                return excelData.filter(row => {
-                    const moleculaMatch = filters.molecula === 'TODAS' || 
-                                         row.comparator_autorizada === filters.molecula;
-                    const ccaaMatch = filters.ccaa === 'TODAS' || 
-                                          row.gardener === filters.ccaa;
-                    const especialidadMatch = filters.especialidad === 'TODAS' || 
-                                          row.experiencia_hcp === filters.especialidad;
-                    const periodMatch = filters.periods.length === 0 || 
-                                       filters.periods.includes(row.mes);
+                return data.filter(row => {
+                    const moleculaMatch = filters.molecula === 'TODAS' ||
+                        row.comparator_autorizada === filters.molecula;
+                    const ccaaMatch = filters.ccaa === 'TODAS' ||
+                        row.gardener === filters.ccaa;
+                    const especialidadMatch = filters.especialidad === 'TODAS' ||
+                        row.experiencia_hcp === filters.especialidad;
+                    const periodMatch = filters.periods.length === 0 ||
+                        filters.periods.includes(row.mes);
 
                     return moleculaMatch && ccaaMatch && especialidadMatch && periodMatch;
                 });
@@ -184,7 +230,7 @@
 
             const getTimeSeriesData = (data) => {
                 const grouped = {};
-                
+
                 data.forEach(row => {
                     const mes = row.mes;
                     if (!grouped[mes]) {
@@ -198,7 +244,7 @@
                             count: 0
                         };
                     }
-                    
+
                     // HCP usa HCP_PROY_NEW (columna AZUL)
                     grouped[mes].hcp += Number(row.hcp_mdx_proyectado) || 0;
                     grouped[mes].patients += Number(row.pacientes_proyectados) || 0;
@@ -233,18 +279,18 @@
             const kpis = calculateKPIs(timeSeriesData, selectedPeriod);
 
             const getUniqueValues = (field) => {
-                if (!excelData) return [];
-                return ['TODAS', ...new Set(excelData.map(row => row[field]).filter(Boolean))];
+                if (!data) return [];
+                return ['TODAS', ...new Set(data.map(row => row[field]).filter(Boolean))];
             };
 
             const getUniqueExperiences = () => {
-                if (!excelData) return [];
-                return ['TODAS', ...new Set(excelData.map(row => row.experiencia_hcp).filter(Boolean))];
+                if (!data) return [];
+                return ['TODAS', ...new Set(data.map(row => row.experiencia_hcp).filter(Boolean))];
             };
 
             const getAllPeriods = () => {
-                if (!excelData) return [];
-                return [...new Set(excelData.map(row => row.mes).filter(Boolean))].sort((a, b) => {
+                if (!data) return [];
+                return [...new Set(data.map(row => row.mes).filter(Boolean))].sort((a, b) => {
                     const [aYear, aMonth] = a.split('/').map(Number);
                     const [bYear, bMonth] = b.split('/').map(Number);
                     return aYear !== bYear ? aYear - bYear : aMonth - bMonth;
@@ -269,7 +315,7 @@
                         </div>
                         <div className='file-upload-compact'>
                             {fileName && <span className='file-name-display'>📊 {fileName}</span>}
-                            <button 
+                            <button
                                 className='upload-btn-compact'
                                 onClick={() => fileInputRef.current?.click()}
                             >
@@ -285,11 +331,11 @@
                         </div>
                     </div>
 
-                    {excelData && (
+                    {data && (
                         <>
                             {/* Collapsible Filters */}
                             <div className='filters-section'>
-                                <div 
+                                <div
                                     className='filters-header'
                                     onClick={() => setFiltersOpen(!filtersOpen)}
                                 >
@@ -356,7 +402,7 @@
                                                     <option key={period} value={period}>{period}</option>
                                                 ))}
                                             </select>
-                                            <small style={{color: 'var(--text-secondary)', fontSize: '0.7rem'}}>
+                                            <small style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
                                                 Mantén Ctrl/Cmd para seleccionar múltiples
                                             </small>
                                         </div>
@@ -417,8 +463,8 @@
                                 <div className='chart-card'>
                                     <h3 className='chart-title'>Evolución Temporal - HCPs, Pacientes y RX</h3>
                                     <div className='chart-container large'>
-                                        <TimeSeriesChart 
-                                            data={timeSeriesData} 
+                                        <TimeSeriesChart
+                                            data={timeSeriesData}
                                             onPeriodClick={setSelectedPeriod}
                                         />
                                     </div>
@@ -444,14 +490,14 @@
                         </>
                     )}
 
-                    {!excelData && !loading && (
+                    {!data && !loading && (
                         <div style={{
                             textAlign: 'center',
                             padding: '4rem',
                             color: 'var(--text-secondary)'
                         }}>
-                            <div style={{fontSize: '4rem', marginBottom: '1rem'}}>📊</div>
-                            <h2 style={{color: 'var(--accent)', marginBottom: '0.5rem'}}>
+                            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>📊</div>
+                            <h2 style={{ color: 'var(--accent)', marginBottom: '0.5rem' }}>
                                 Carga un archivo Excel para comenzar
                             </h2>
                             <p>Haz clic en 'Cargar Excel' en la parte superior</p>
@@ -559,7 +605,7 @@
                                 borderWidth: 1,
                                 padding: 12,
                                 callbacks: {
-                                    label: function(context) {
+                                    label: function (context) {
                                         let label = context.dataset.label || '';
                                         if (label) {
                                             label += ': ';
@@ -674,7 +720,7 @@
                                 borderWidth: 1,
                                 padding: 12,
                                 callbacks: {
-                                    label: function(context) {
+                                    label: function (context) {
                                         let label = context.dataset.label || '';
                                         if (label) {
                                             label += ': ';
@@ -738,7 +784,7 @@
                                         family: 'Space Mono, monospace',
                                         size: 10
                                     },
-                                    callback: function(value) {
+                                    callback: function (value) {
                                         return value.toFixed(1) + '%';
                                     }
                                 },
@@ -788,14 +834,14 @@
                 // Calculate year-over-year comparison
                 const months = Object.keys(dataByYearMonth).sort((a, b) => Number(a) - Number(b));
                 const years = [...new Set(data.map(d => d.mes.split('/')[0]))].sort();
-                
+
                 const datasets = [];
-                
+
                 // Create datasets for each year
                 years.forEach((year, index) => {
                     const colors = ['#00D4FF', '#7B61FF', '#00C896', '#FFB020', '#FF6B6B'];
                     const color = colors[index % colors.length];
-                    
+
                     datasets.push({
                         label: `Año ${year} - HCP`,
                         data: months.map(month => {
@@ -815,8 +861,8 @@
                     type: 'line',
                     data: {
                         labels: months.map(m => {
-                            const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 
-                                              'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                            const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+                                'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
                             return monthNames[Number(m) - 1];
                         }),
                         datasets: datasets
@@ -849,7 +895,7 @@
                                 borderWidth: 1,
                                 padding: 12,
                                 callbacks: {
-                                    label: function(context) {
+                                    label: function (context) {
                                         let label = context.dataset.label || '';
                                         if (label) {
                                             label += ': ';
@@ -915,4 +961,5 @@
         ReactDOM.render(<Dashboard />, document.getElementById('root'));
     </script>
 </body>
+
 </html>
