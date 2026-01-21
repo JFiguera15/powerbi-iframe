@@ -1,0 +1,32 @@
+[
+  {
+    "mes": "2024/01",
+    "ccaa": "Madrid",
+    "molecula": "MDX",
+    "especialidad_hcp": "Oncología",
+    "hcp_proy": 120,
+    "pacientes": 300,
+    "rx": 520,
+    "depth": 4.3,
+    "breadth": 0.28,
+    "novedosos": 20,
+    "tipoper": "Publico",
+    "mercado": "Onco",
+    "segmento": "A"
+  },
+  {
+    "mes": "2024/02",
+    "ccaa": "Cataluña",
+    "molecula": "MDX",
+    "especialidad_hcp": "Oncología",
+    "hcp_proy": 140,
+    "pacientes": 340,
+    "rx": 600,
+    "depth": 4.6,
+    "breadth": 0.31,
+    "novedosos": 25,
+    "tipoper": "Publico",
+    "mercado": "Onco",
+    "segmento": "A"
+  }
+]
